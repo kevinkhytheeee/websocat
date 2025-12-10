@@ -28,6 +28,8 @@ Some address types may be "aliases" to other address types or combinations of ov
 
 
 ```
+Implement the IM chat encryption indicator UI on the frontend, so users can see and control encryption status for each chat and chatroom.
+
 
 websocat 1.14.0
 Vitaly "_Vi" Shukela <vi0oss@gmail.com>

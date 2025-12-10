@@ -47,10 +47,6 @@ specifier_class!(
     SingleConnect,
     help = r#"
 Connect to UNIX socket. Argument is filesystem path. [A]
-
-Example: forward connections from websockets to a UNIX stream socket
-
-    websocat ws-l:127.0.0.1:8088 unix:the_socket
 "#
 );
 
@@ -70,40 +66,9 @@ specifier_class!(
     overlay = false,
     StreamOriented,
     MultiConnect,
+to websocat based on URLs.
     help = r#"
 Listen for connections on a specified UNIX socket [A]
-
-Example: forward connections from a UNIX socket to a WebSocket
-
-    websocat --unlink unix-l:the_socket ws://127.0.0.1:8089
-
-Example: Accept forwarded WebSocket connections from Nginx
-
-    umask 0000
-    websocat --unlink -b -E ws-u:unix-l:/tmp/wstest tcp:[::]:22
-
-Nginx config:
-
-    location /ws {
-        proxy_read_timeout 7d;
-        proxy_send_timeout 7d;
-        #proxy_pass http://localhost:3012;
-        proxy_pass http://unix:/tmp/wstest;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection \"upgrade\";
-    }
-
-This configuration allows to make Nginx responsible for
-SSL and also it can choose which connections to forward
-to websocat based on URLs.
-
-Obviously, Nginx can also redirect to TCP-listening
-websocat just as well - UNIX sockets are not a requirement for this feature.
-
-See `moreexamples.md` for SystemD usage (untested).
-
-TODO: --chmod option?
 "#
 );
 
@@ -178,15 +143,6 @@ specifier_class!(
     SingleConnect,
     help = r#"
 Connect to UNIX abstract-namespaced socket. Argument is some string used as address. [A]
-
-Too long addresses may be silently chopped off.
-
-Example: forward connections from websockets to an abstract stream socket
-
-    websocat ws-l:127.0.0.1:8088 abstract:the_socket
-
-Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
-so non-prebuilt versions may have problems with them.
 "#
 );
 
@@ -216,13 +172,6 @@ specifier_class!(
     MultiConnect,
     help = r#"
 Listen for connections on a specified abstract UNIX socket [A]
-
-Example: forward connections from an abstract UNIX socket to a WebSocket
-
-    websocat abstract-l:the_socket ws://127.0.0.1:8089
-
-Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
-so non-prebuilt versions may have problems with them.
 "#
 );
 
@@ -273,17 +222,6 @@ specifier_class!(
     SingleConnect,
     help = r#"
 Send packets to one address, receive from the other. [A]
-A socket for sending must be already opened.
-
-I don't know if this mode has any use, it is here just for completeness.
-
-Example (untested):
-
-    websocat - abstract-dgram:receiver_addr:sender_addr
-
-Note that abstract-namespaced Linux sockets may not be normally supported by Rust,
-so non-prebuilt versions may have problems with them. In particular, this mode
-may fail to work without `workaround1` Cargo feature.
 "#
 );
 
@@ -339,7 +277,7 @@ pub fn unix_connect_peer(addr: &Path) -> BoxedNewPeerFuture {
                 Peer::new(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
-                    None /* TODO */,
+                    None,
                 )
             })
             .map_err(box_up_err),
@@ -382,7 +320,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
         Err(e) => return peer_err_s(e),
     };
     debug!("UNIX listening socket should be ready");
-    // TODO: chmod
+    // Set permissions if required
     use tk_listen::ListenExt;
     Box::new(
         bound
@@ -394,7 +332,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
                 Peer::new(
                     MyUnixStream(x.clone(), true),
                     MyUnixStream(x.clone(), false),
-                    None /* TODO */,
+                    None,
                 )
             })
             .map_err(|()| crate::simple_err2("unreachable error?")),
@@ -404,7 +342,7 @@ pub fn unix_listen_peer(addr: &Path, opts: &Rc<Options>) -> BoxedNewPeerStream {
 struct DgramPeer {
     s: UnixDatagram,
     #[allow(unused)]
-    oneshot_mode: bool, // TODO
+    oneshot_mode: bool,
 }
 
 #[derive(Clone)]
